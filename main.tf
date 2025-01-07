@@ -2,7 +2,7 @@
 
 module "vpc" {
     source = "terraform-aws-modules/vpc/aws"
-    version = "3.18.1"
+    version = "~> 4.0"
 
     name = "my-vpc"
     cidr = "10.0.0.0/16"
@@ -28,7 +28,7 @@ module "eks" {
   vpc_id                   = module.vpc.vpc_id
   subnet_ids               = module.vpc.private_subnets
 
-  cluster_endpoint_public_access = false
+  cluster_endpoint_public_access = true
   cluster_endpoint_private_access = true
 
 
@@ -40,4 +40,45 @@ module "eks" {
       instance_types = ["t3.micro"]
     }
   }
+}
+resource "aws_security_group" "loadbalancer" {
+  name_prefix = "eks-worker-nodes"
+
+  vpc_id = module.vpc.vpc_id
+
+  ingress {
+    description = "Allow traffic from the EKS control plane"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    security_groups = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Allow traffic within the VPC"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+
+resource "aws_security_group_rule" "eks_api_server" {
+    type = "ingress"
+    from_port = 6443
+    to_port = 6443
+    protocol = "tcp"
+    cidr_blocks = []
+    ipv6_cidr_blocks = ["2600:480a:51d2:5500:e557:ac80:4b17:26c1/128"]
+    security_group_id = module.eks.cluster_security_group_id
+  
 }
