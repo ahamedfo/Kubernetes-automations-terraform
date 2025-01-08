@@ -1,6 +1,3 @@
-# kubernetes cluster
-
-
 module "vpc" {
     source = "terraform-aws-modules/vpc/aws"
     version = "~> 4.0"
@@ -38,7 +35,7 @@ module "eks" {
       min_size       = 1
       max_size       = 3
       desired_size   = 2
-      instance_types = ["t3.micro"]
+      instance_types = ["t3.medium"]
     }
   }
 }
@@ -83,4 +80,18 @@ resource "aws_security_group_rule" "eks_api_server" {
     ipv6_cidr_blocks = ["2600:480a:51d2:5500:e557:ac80:4b17:26c1/128"]
     security_group_id = module.eks.cluster_security_group_id
   
+}
+
+resource "time_sleep" "wait_for_kubernetes" {
+  depends_on = [ helm_release.certmanager ]
+    //Without waiting sometimes terraform does not create the dependency object fast enough so we give it a wait duration
+  create_duration = "10s"
+}
+
+data "aws_eks_cluster" "cluster" {
+  name = "terraform_auto_proj_cluster"  # Replace with your EKS cluster name
+}
+
+data "aws_eks_cluster_auth" "cluster" {
+  name = "terraform_auto_proj_cluster"  # Replace with your EKS cluster name
 }
